@@ -1,7 +1,18 @@
 
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
-from typing import Optional
 from enum import Enum
+from typing import Optional
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    EmailStr,
+    field_validator
+)
+
+
+# Maximum number of servings
+MAX_SERVINGS = 68
 
 
 # Recipe difficulty
@@ -23,6 +34,20 @@ class AuthorBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: EmailStr
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
 
 class AuthorCreate(AuthorBase):
     pass
@@ -31,6 +56,20 @@ class AuthorCreate(AuthorBase):
 class AuthorUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     email: Optional[EmailStr] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
 
 
 class AuthorResponse(AuthorBase):
@@ -43,6 +82,13 @@ class AuthorResponse(AuthorBase):
 class CategoryBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
 
 class CategoryCreate(CategoryBase):
     pass
@@ -50,6 +96,13 @@ class CategoryCreate(CategoryBase):
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
 
 
 class CategoryResponse(CategoryBase):
@@ -62,6 +115,13 @@ class CategoryResponse(CategoryBase):
 class IngredientBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
 
 class IngredientCreate(IngredientBase):
     pass
@@ -69,6 +129,13 @@ class IngredientCreate(IngredientBase):
 
 class IngredientUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
 
 
 class IngredientResponse(IngredientBase):
@@ -79,7 +146,7 @@ class IngredientResponse(IngredientBase):
 
 # Recipe ingredient schemas
 class RecipeIngredientCreate(BaseModel):
-    ingredient_id: int
+    ingredient_id: int = Field(gt=0)
     quantity: float = Field(gt=0)
     unit: IngredientUnit
 
@@ -101,9 +168,17 @@ class RecipeBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     instructions: str = Field(min_length=1)
     preparation_time: int = Field(gt=0)
-    servings: int = Field(gt=0)
-    author_id: int
-    category_id: Optional[int] = None
+    servings: int = Field(gt=0, le=MAX_SERVINGS)
+    author_id: int = Field(gt=0)
+    category_id: Optional[int] = Field(default=None, gt=0)
+    difficulty: Difficulty
+
+    @field_validator("title", "instructions", mode="before")
+    @classmethod
+    def validate_text(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
 
 
 class RecipeCreate(RecipeBase):
@@ -114,8 +189,21 @@ class RecipeUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     instructions: Optional[str] = Field(default=None, min_length=1)
     preparation_time: Optional[int] = Field(default=None, gt=0)
-    servings: Optional[int] = Field(default=None, gt=0)
-    category_id: Optional[int] = None
+    servings: Optional[int] = Field(
+        default=None,
+        gt=0,
+        le=MAX_SERVINGS
+    )
+    author_id: Optional[int] = Field(default=None, gt=0)
+    category_id: Optional[int] = Field(default=None, gt=0)
+    difficulty: Optional[Difficulty] = None
+
+    @field_validator("title", "instructions", mode="before")
+    @classmethod
+    def validate_text(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
 
 
 class RecipeResponse(RecipeBase):
@@ -126,10 +214,17 @@ class RecipeResponse(RecipeBase):
 
 # Recipe with ingredients
 class RecipeDetailsResponse(RecipeResponse):
-    ingredients: list[RecipeIngredientResponse] = []
+    ingredients: list[RecipeIngredientResponse] = Field(
+        default_factory=list
+    )
 
 
 # Recipe with recalculated servings
 class RecipeScaledResponse(RecipeResponse):
-    requested_servings: int
-    ingredients: list[RecipeIngredientResponse]
+    requested_servings: int = Field(
+        gt=0,
+        le=MAX_SERVINGS
+    )
+    ingredients: list[RecipeIngredientResponse] = Field(
+        default_factory=list
+    )
