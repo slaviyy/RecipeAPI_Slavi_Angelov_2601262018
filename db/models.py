@@ -19,15 +19,9 @@ class Author(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-        unique=True
-    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
-    recipes: Mapped[list["Recipe"]] = relationship(
-        back_populates="author"
-    )
+    recipes: Mapped[list["Recipe"]] = relationship(back_populates="author")
 
     __table_args__ = (
         CheckConstraint("length(trim(name)) > 0"),
@@ -41,9 +35,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    recipes: Mapped[list["Recipe"]] = relationship(
-        back_populates="category"
-    )
+    recipes: Mapped[list["Recipe"]] = relationship(back_populates="category")
 
     __table_args__ = (
         CheckConstraint("length(trim(name)) > 0"),
@@ -86,13 +78,11 @@ class Recipe(Base):
         nullable=True
     )
 
-    author: Mapped["Author"] = relationship(
-        back_populates="recipes"
-    )
+    # New field - added through the second Alembic migration
+    difficulty: Mapped[str] = mapped_column(String(10), nullable=False)
 
-    category: Mapped["Category | None"] = relationship(
-        back_populates="recipes"
-    )
+    author: Mapped["Author"] = relationship(back_populates="recipes")
+    category: Mapped["Category | None"] = relationship(back_populates="recipes")
 
     recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
         back_populates="recipe",
@@ -105,6 +95,7 @@ class Recipe(Base):
         CheckConstraint("length(trim(instructions)) > 0"),
         CheckConstraint("preparation_time > 0"),
         CheckConstraint("servings > 0"),
+        CheckConstraint("difficulty IN ('easy', 'medium', 'hard')"),
     )
 
 
@@ -125,10 +116,7 @@ class RecipeIngredient(Base):
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     unit: Mapped[str] = mapped_column(String(10), nullable=False)
 
-    recipe: Mapped["Recipe"] = relationship(
-        back_populates="recipe_ingredients"
-    )
-
+    recipe: Mapped["Recipe"] = relationship(back_populates="recipe_ingredients")
     ingredient: Mapped["Ingredient"] = relationship(
         back_populates="recipe_ingredients"
     )
@@ -139,7 +127,7 @@ class RecipeIngredient(Base):
     )
 
 
-# Case-insensitive and trimmed unique names
+# Functional indexes
 Index(
     "uq_category_name_normalized",
     func.lower(func.trim(Category.name)),
@@ -152,7 +140,6 @@ Index(
     unique=True
 )
 
-# One author cannot have recipes with the same title
 Index(
     "uq_recipe_author_title_normalized",
     Recipe.author_id,
